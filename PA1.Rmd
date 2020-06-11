@@ -1,0 +1,113 @@
+---
+title: "Fitness Activity"
+author: "Uttam Reddy"
+date: "11/06/2020"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Course project 2
+
+### Loading and processing the data
+
+Let's load the *activity.csv* data file into a data frame variable called *fitdata* and transforming the *date* character variable to **date** format
+```{r loaddata}
+# read the dataset
+fitdata <- read.csv(file = "activity.csv", header = TRUE, sep = ",", colClasses = c("integer", "character", "integer"))
+# transforming date variable
+fitdata <- transform(fitdata, date = as.Date(fitdata$date, "%Y-%m-%d"))
+```
+
+### What is the mean total number of steps taken per day
+
+The following code estimates the mean total number of steps taken per day
+
+```{r StepsPerDay}
+# adding the steps according to the date variable
+stepVdate <- with(fitdata, tapply(steps,date , sum, na.rm = T))
+# making a histogram or bar plot of total number of steps taken per day
+hist(stepVdate, breaks = 11, xlab = "Steps completed", ylab = "Day", main = "Frequency of number steps completed")
+abline(v = mean(stepVdate, na.rm = T), lwd = 2, lty = 1, col = "red")
+abline(v = median(stepVdate, na.rm = T), lwd = 2, lty = 1, col = "blue")
+legend("topright", legend = c("mean", "median"), col = c("red","blue"), lwd = 2)
+# calculating the mean, median, and total step counts
+stepmean <- mean(stepVdate, na.rm = T)
+stepmedian <- median(stepVdate, na.rm = T)
+total.steps <- sum(fitdata$steps, na.rm = T)
+```
+
+The mean steps per day is `r stepmean` and the median steps per day is `r stepmedian`.
+
+### What is the average daily activity pattern?
+
+The following code estimates the daily activity pattern
+
+```{r avg_daily_pattern}
+# calculating the daily averaged steps according to the time interval
+stepVinterval <- aggregate(steps~interval, data = fitdata, mean)
+#plotting
+with(stepVinterval, plot(interval, steps, xlab = "Interval(minutes)", ylab = "Daily averaged steps", main = "Daily activity pattern", type = "l"))
+# estimating the interval at which maximum steps took place
+max_stepinterval <- stepVinterval[which.max(stepVinterval$steps), ][1]
+```
+The maximum step inteval averaged across all the days is `r max_stepinterval`.
+
+### Imputing missing values
+
+The total number of rows with missing values in the data
+
+```{r missing}
+tot_NA <- sum(is.na(fitdata$steps))
+```
+The total number of missing values is given as `r tot_NA`.
+
+Filling the missing data with mean of the interval
+
+```{r impute}
+# creating a vector containing the average step counts according to a given interval
+mean.steps <- with(fitdata, tapply(steps, interval, mean, na.rm=T))
+# creating an imputed dataset by assigning the average step count in the interval to the missing values
+impute_fitdata <- transform(fitdata, steps = ifelse(is.na(steps), mean.steps, steps))
+stepVdate2 <- aggregate(steps~date, data = impute_fitdata, sum)
+#plotting
+with(stepVdate2, hist(steps, breaks = 11, xlab = "Steps", ylab = "Counts", main = "The Daily Activity pattern (NAs adjusted)"))
+abline(v = mean(stepVdate2$steps), lwd =2, col = "red")
+abline(v = median(stepVdate2$steps), lwd = 2, lty = 2,  col = "blue")
+legend("topright", legend = c("mean", "median"), col=c("red","blue"), lwd = 2)
+# calculating the mean, median and total steps in the imputed data set
+mean.steps_impute_fitdata <- mean(stepVdate2$steps)
+median.steps_impute_fitdata <- median(stepVdate2$steps)
+total.steps_impute_fitdata <- sum(stepVdate2$steps)
+```
+
+The daily averaged steps in the imputed data set (NAs replaced with mean of steps across that interval) is `r mean.steps_impute_fitdata` and the median step count across all the days is `r median.steps_impute_fitdata`.
+
+whereas, The mean steps per day is `r stepmean` and the median steps per day is `r stepmedian` in the initial data set(with NAs).
+
+The total number of steps in the initial dataset is `r total.steps` where as after imputation the total step count is `r total.steps_impute_fitdata`.
+
+### Are there differences in activity patterns between weekdays and weekends?
+
+The following code estimates the differences in activity patterns between weekdays and weekends
+
+
+```{r weekday}
+## adding a weekday factor variable to the imputed dataset
+impute_fitdata <- transform(impute_fitdata, week = factor(weekdays(date)))
+levels(impute_fitdata$week) <- c("weekdays", "weekdays","weekends","weekends","weekdays", "weekdays","weekdays")
+# calculating the averaged step count according to the interval and week
+stepVinterval2 <- aggregate(steps~interval+week, data = impute_fitdata, mean)
+## plotting
+library(ggplot2)
+g <- ggplot(data = stepVinterval2, aes(x = interval, y = steps))
+g + geom_line() + facet_grid(week~.) + labs(x = "Time of the day(minutes)", y = "Number of steps completed", title = "Daily activity pattern")
+```
+
+
+Thus, we can observe that activity is highest at the early hours of the weekdays. However, on an average, activity is greater on weekends.
